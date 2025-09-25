@@ -1,0 +1,791 @@
+// File Manager JavaScript
+const BASE_PATH = "/file-manager";
+let currentPath = "";
+let authToken = "";
+let selectedFiles = new Set();
+
+// Initialize the application
+document.addEventListener("DOMContentLoaded", function () {
+  initAuth();
+  setupEventListeners();
+});
+
+// Authentication
+function initAuth() {
+  const savedToken = localStorage.getItem("fileManagerAuth");
+  if (savedToken) {
+    authToken = savedToken;
+    hideAuth();
+    loadFiles();
+  } else {
+    showAuth();
+  }
+}
+
+function showAuth() {
+  document.getElementById("authContainer").style.display = "flex";
+}
+
+function hideAuth() {
+  document.getElementById("authContainer").style.display = "none";
+}
+
+document.getElementById("authForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+  const password = document.getElementById("passwordInput").value;
+
+  authToken = password;
+  localStorage.setItem("fileManagerAuth", password);
+  hideAuth();
+  loadFiles();
+});
+
+// Event Listeners
+function setupEventListeners() {
+  // === FILE UPLOAD HANDLERS ===
+  const uploadArea = document.getElementById("uploadArea");
+  const fileInput = document.getElementById("fileInput");
+
+  uploadArea.addEventListener("click", () => fileInput.click());
+  document.getElementById("uploadLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", handleFileUpload);
+
+  // === FOLDER UPLOAD HANDLERS ===
+  const folderUploadArea = document.getElementById("folderUploadArea");
+  const folderInput = document.getElementById("folderInput");
+
+  folderUploadArea.addEventListener("click", () => folderInput.click());
+  document.getElementById("folderUploadLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    folderInput.click();
+  });
+
+  folderInput.addEventListener("change", handleFolderUpload);
+
+  // === DRAG AND DROP ===
+  // File upload area
+  uploadArea.addEventListener("dragover", handleDragOver);
+  uploadArea.addEventListener("dragleave", handleDragLeave);
+  uploadArea.addEventListener("drop", handleDrop);
+
+  // Folder upload area
+  folderUploadArea.addEventListener("dragover", handleDragOver);
+  folderUploadArea.addEventListener("dragleave", handleDragLeave);
+  folderUploadArea.addEventListener("drop", handleFolderDrop);
+
+  // === HEADER BUTTONS ===
+  document
+    .getElementById("uploadBtn")
+    .addEventListener("click", () => fileInput.click());
+  document
+    .getElementById("uploadFolderBtn")
+    .addEventListener("click", () => folderInput.click());
+  document
+    .getElementById("createFolderBtn")
+    .addEventListener("click", () => openModal("createFolderModal"));
+
+  // === FOOTER BUTTONS ===
+  document
+    .getElementById("selectAllBtn")
+    .addEventListener("click", toggleSelectAll);
+  document
+    .getElementById("downloadBtn")
+    .addEventListener("click", downloadSelected);
+  document
+    .getElementById("deleteBtn")
+    .addEventListener("click", deleteSelected);
+
+  // === FORM HANDLERS ===
+  document
+    .getElementById("renameForm")
+    .addEventListener("submit", handleRename);
+  document.getElementById("chmodForm").addEventListener("submit", handleChmod);
+  document
+    .getElementById("createFolderForm")
+    .addEventListener("submit", handleCreateFolder);
+}
+
+// API Helper
+async function apiRequest(url, options = {}) {
+  if (!authToken) {
+    showAuth();
+    return null;
+  }
+
+  const config = {
+    headers: {
+      ...options.headers,
+      "x-auth": authToken,
+    },
+    ...options,
+  };
+
+  try {
+    const response = await fetch(url, config);
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem("fileManagerAuth");
+        showAuth();
+        return null;
+      }
+      throw new Error(data.error || "Request failed");
+    }
+
+    return data;
+  } catch (error) {
+    showStatus(error.message, "error");
+    return null;
+  }
+}
+
+// File Operations
+async function loadFiles(path = "") {
+  showLoading(true);
+  currentPath = path;
+  selectedFiles.clear();
+  updateSelection();
+
+  const data = await apiRequest(
+    `${BASE_PATH}/api/files?path=${encodeURIComponent(path)}`
+  );
+
+  if (data) {
+    renderFileList(data.files);
+    updateBreadcrumb(path);
+  }
+
+  showLoading(false);
+}
+
+function renderFileList(files) {
+  const fileList = document.getElementById("fileList");
+  const emptyState = document.getElementById("emptyState");
+
+  if (files.length === 0) {
+    fileList.innerHTML = "";
+    emptyState.classList.remove("hidden");
+    return;
+  }
+
+  emptyState.classList.add("hidden");
+
+  fileList.innerHTML = files
+    .map(
+      (file) => `
+        <div class="file-item" data-path="${escapeHtml(file.path)}">
+            <input type="checkbox" class="checkbox" data-file="${escapeHtml(
+              file.path
+            )}">
+            <div class="file-icon">
+                ${file.isDirectory ? "📁" : getFileIcon(file.name)}
+            </div>
+            <div class="file-info">
+                <div class="file-name" onclick="handleFileClick('${escapeHtml(
+                  file.path
+                )}', ${file.isDirectory})">
+                    ${escapeHtml(file.name)}
+                </div>
+                <div class="file-meta">
+                    ${
+                      file.isDirectory ? "Folder" : formatFileSize(file.size)
+                    } • 
+                    ${formatDate(file.modified)} • 
+                    ${file.permissions}
+                </div>
+            </div>
+            <div class="file-actions">
+                <button class="btn btn-small btn-warning" onclick="rename('${escapeHtml(
+                  file.path
+                )}', '${escapeHtml(file.name)}')">
+                    ✏️ Rename
+                </button>
+                <button class="btn btn-small btn-primary" onclick="chmod('${escapeHtml(
+                  file.path
+                )}')">
+                    🔒 Chmod
+                </button>
+                ${
+                  !file.isDirectory
+                    ? `
+                    <a href="${BASE_PATH}/api/download?files=${encodeURIComponent(
+                        file.path
+                      )}&key=${authToken}" 
+                       class="btn btn-small btn-success" download>
+                        📥 Download
+                    </a>
+                `
+                    : ""
+                }
+                <button class="btn btn-small btn-danger" onclick="deleteFile('${escapeHtml(
+                  file.path
+                )}')">
+                    🗑️ Delete
+                </button>
+            </div>
+        </div>
+    `
+    )
+    .join("");
+
+  // Add checkbox listeners
+  fileList.querySelectorAll(".checkbox").forEach((checkbox) => {
+    checkbox.addEventListener("change", handleFileSelection);
+  });
+}
+
+function handleFileClick(path, isDirectory) {
+  if (isDirectory) {
+    loadFiles(path);
+  } else {
+    // Download single file
+    window.open(
+      `${BASE_PATH}/api/download?files=${encodeURIComponent(
+        path
+      )}&key=${authToken}`
+    );
+  }
+}
+
+// File Upload
+async function handleFileUpload(event) {
+  const files = Array.from(event.target.files);
+  if (files.length === 0) return;
+
+  await uploadFiles(files);
+  event.target.value = ""; // Clear input
+}
+
+async function uploadFiles(files) {
+  const formData = new FormData();
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  formData.append("path", currentPath);
+
+  // Check if any zip files for extraction option
+  const hasZip = files.some((file) => file.name.toLowerCase().endsWith(".zip"));
+  if (hasZip) {
+    const extract = confirm("Extract ZIP files after upload?");
+    if (extract) {
+      formData.append("extract", "true");
+    }
+  }
+
+  showStatus("Uploading files...", "success");
+
+  const data = await apiRequest(`${BASE_PATH}/api/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (data) {
+    showStatus(`Successfully uploaded ${data.files.length} file(s)`, "success");
+    loadFiles(currentPath);
+  }
+}
+
+// === FOLDER UPLOAD FUNCTIONS ===
+async function handleFolderUpload(event) {
+  const files = Array.from(event.target.files);
+  if (files.length === 0) return;
+
+  await uploadFolderFiles(files);
+  event.target.value = ""; // Clear input
+}
+
+async function uploadFolderFiles(files) {
+  const formData = new FormData();
+
+  // Group files by folder structure
+  const folderStructure = new Map();
+
+  files.forEach((file) => {
+    // Preserve the relative path structure
+    const relativePath = file.webkitRelativePath || file.name;
+    const pathParts = relativePath.split("/");
+
+    // Create folder structure info
+    const folderPath = pathParts.slice(0, -1).join("/");
+    if (folderPath && !folderStructure.has(folderPath)) {
+      folderStructure.set(folderPath, []);
+    }
+
+    formData.append("files", file);
+
+    // Store the relative path for the backend to use
+    if (file.webkitRelativePath) {
+      formData.append("relativePaths", file.webkitRelativePath);
+    }
+  });
+
+  formData.append("path", currentPath);
+  formData.append("preserveStructure", "true");
+
+  showStatus(`Uploading folder with ${files.length} files...`, "success");
+
+  const data = await apiRequest(`${BASE_PATH}/api/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (data) {
+    showStatus(
+      `Successfully uploaded folder with ${data.files.length} file(s)`,
+      "success"
+    );
+    loadFiles(currentPath);
+  }
+}
+
+// Drag and Drop
+function handleDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add("drag-over");
+}
+
+function handleDragLeave(e) {
+  e.currentTarget.classList.remove("drag-over");
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove("drag-over");
+
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length > 0) {
+    uploadFiles(files);
+  }
+}
+
+function handleFolderDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove("drag-over");
+
+  const items = Array.from(e.dataTransfer.items);
+  const files = [];
+
+  // Process dropped items to handle folder structure
+  const promises = items.map(async (item) => {
+    if (item.kind === "file") {
+      const entry = item.webkitGetAsEntry();
+      if (entry) {
+        await traverseFileTree(entry, files);
+      }
+    }
+  });
+
+  Promise.all(promises).then(() => {
+    if (files.length > 0) {
+      uploadFolderFiles(files);
+    }
+  });
+}
+
+// Helper function to traverse folder structure in drag & drop
+async function traverseFileTree(item, files, path = "") {
+  return new Promise((resolve) => {
+    if (item.isFile) {
+      item.file((file) => {
+        // Add the relative path to the file object
+        Object.defineProperty(file, "webkitRelativePath", {
+          value: path + file.name,
+          writable: false,
+        });
+        files.push(file);
+        resolve();
+      });
+    } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      dirReader.readEntries(async (entries) => {
+        const promises = entries.map((entry) =>
+          traverseFileTree(entry, files, path + item.name + "/")
+        );
+        await Promise.all(promises);
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+}
+
+// File Selection
+function handleFileSelection(event) {
+  const filePath = event.target.getAttribute("data-file");
+
+  if (event.target.checked) {
+    selectedFiles.add(filePath);
+  } else {
+    selectedFiles.delete(filePath);
+  }
+
+  updateSelection();
+}
+
+function toggleSelectAll() {
+  const checkboxes = document.querySelectorAll(".checkbox");
+  const allSelected = selectedFiles.size === checkboxes.length;
+
+  if (allSelected) {
+    // Deselect all
+    selectedFiles.clear();
+    checkboxes.forEach((cb) => (cb.checked = false));
+  } else {
+    // Select all
+    checkboxes.forEach((cb) => {
+      cb.checked = true;
+      selectedFiles.add(cb.getAttribute("data-file"));
+    });
+  }
+
+  updateSelection();
+}
+
+function updateSelection() {
+  const count = selectedFiles.size;
+  document.getElementById("selectionCount").textContent = `${count} item${
+    count !== 1 ? "s" : ""
+  } selected`;
+
+  const downloadBtn = document.getElementById("downloadBtn");
+  const deleteBtn = document.getElementById("deleteBtn");
+
+  downloadBtn.disabled = count === 0;
+  deleteBtn.disabled = count === 0;
+
+  document.getElementById("selectAllBtn").textContent =
+    count === document.querySelectorAll(".checkbox").length
+      ? "Deselect All"
+      : "Select All";
+}
+
+// File Operations
+async function downloadSelected() {
+  if (selectedFiles.size === 0) return;
+
+  const files = Array.from(selectedFiles);
+  const url = `${BASE_PATH}/api/download?${files
+    .map((f) => `files=${encodeURIComponent(f)}`)
+    .join("&")}&key=${authToken}`;
+
+  window.open(url);
+}
+
+async function deleteSelected() {
+  if (selectedFiles.size === 0) return;
+
+  if (!confirm(`Delete ${selectedFiles.size} selected item(s)?`)) return;
+
+  const files = Array.from(selectedFiles);
+  const data = await apiRequest(`${BASE_PATH}/api/delete`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ files }),
+  });
+
+  if (data) {
+    showStatus("Items deleted successfully", "success");
+    loadFiles(currentPath);
+  }
+}
+
+async function deleteFile(filePath) {
+  if (!confirm("Delete this item?")) return;
+
+  const data = await apiRequest(`${BASE_PATH}/api/delete`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ files: [filePath] }),
+  });
+
+  if (data) {
+    showStatus("Item deleted successfully", "success");
+    loadFiles(currentPath);
+  }
+}
+
+// Rename
+function rename(filePath, currentName) {
+  document.getElementById("renameInput").value = currentName;
+  document.getElementById("renameModal").style.display = "flex";
+
+  // Store the file path for the rename operation
+  document
+    .getElementById("renameForm")
+    .setAttribute("data-file-path", filePath);
+}
+
+async function handleRename(event) {
+  event.preventDefault();
+
+  const filePath = event.target.getAttribute("data-file-path");
+  const newName = document.getElementById("renameInput").value.trim();
+
+  if (!newName) return;
+
+  const data = await apiRequest(`${BASE_PATH}/api/rename`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      oldPath: filePath,
+      newName: newName,
+    }),
+  });
+
+  if (data) {
+    showStatus("Item renamed successfully", "success");
+    closeModal("renameModal");
+    loadFiles(currentPath);
+  }
+}
+
+// CHMOD
+function chmod(filePath) {
+  document.getElementById("chmodModal").style.display = "flex";
+  document.getElementById("chmodForm").setAttribute("data-file-path", filePath);
+}
+
+async function handleChmod(event) {
+  event.preventDefault();
+
+  const filePath = event.target.getAttribute("data-file-path");
+  const mode = document.getElementById("chmodInput").value.trim();
+
+  if (!mode.match(/^[0-7]{3}$/)) {
+    showStatus("Invalid permission format. Use 3 digits (0-7)", "error");
+    return;
+  }
+
+  const data = await apiRequest(`${BASE_PATH}/api/chmod`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      filePath: filePath,
+      mode: mode,
+    }),
+  });
+
+  if (data) {
+    showStatus("Permissions changed successfully", "success");
+    closeModal("chmodModal");
+    loadFiles(currentPath);
+  }
+}
+
+// Create Folder
+async function handleCreateFolder(event) {
+  event.preventDefault();
+
+  const name = document.getElementById("folderNameInput").value.trim();
+
+  if (!name) return;
+
+  const data = await apiRequest(`${BASE_PATH}/api/mkdir`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      path: currentPath,
+      name: name,
+    }),
+  });
+
+  if (data) {
+    showStatus("Folder created successfully", "success");
+    closeModal("createFolderModal");
+    document.getElementById("folderNameInput").value = "";
+    loadFiles(currentPath);
+  }
+}
+
+// Navigation
+function updateBreadcrumb(path) {
+  const breadcrumb = document.getElementById("breadcrumb");
+  const parts = path.split("/").filter((p) => p);
+
+  let html =
+    '<a href="#" class="breadcrumb-item" onclick="loadFiles(\'\')">Home</a>';
+
+  let currentPathBuild = "";
+  parts.forEach((part, index) => {
+    currentPathBuild += (currentPathBuild ? "/" : "") + part;
+    html += '<span class="breadcrumb-separator">/</span>';
+    html += `<a href="#" class="breadcrumb-item" onclick="loadFiles('${escapeHtml(
+      currentPathBuild
+    )}')">${escapeHtml(part)}</a>`;
+  });
+
+  breadcrumb.innerHTML = html;
+}
+
+// UI Helpers
+function openModal(modalId) {
+  document.getElementById(modalId).style.display = "flex";
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).style.display = "none";
+
+  // Clear form data
+  const modal = document.getElementById(modalId);
+  const form = modal.querySelector("form");
+  if (form) {
+    form.reset();
+    form.removeAttribute("data-file-path");
+  }
+}
+
+function showStatus(message, type) {
+  const status = document.getElementById("status");
+  status.textContent = message;
+  status.className = `status ${type}`;
+  status.style.display = "block";
+
+  setTimeout(() => {
+    status.style.display = "none";
+  }, 5000);
+}
+
+function showLoading(show) {
+  document.getElementById("loading").style.display = show ? "block" : "none";
+  document.getElementById("fileList").style.display = show ? "none" : "block";
+}
+
+// Utility Functions
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return "0 B";
+
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return (
+    date.toLocaleDateString() +
+    " " +
+    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  );
+}
+
+function getFileIcon(filename) {
+  const ext = filename.split(".").pop().toLowerCase();
+
+  const icons = {
+    // Images
+    jpg: "🖼️",
+    jpeg: "🖼️",
+    png: "🖼️",
+    gif: "🖼️",
+    bmp: "🖼️",
+    svg: "🖼️",
+
+    // Documents
+    pdf: "📄",
+    doc: "📄",
+    docx: "📄",
+    txt: "📄",
+    rtf: "📄",
+
+    // Spreadsheets
+    xls: "📊",
+    xlsx: "📊",
+    csv: "📊",
+
+    // Archives
+    zip: "📦",
+    rar: "📦",
+    "7z": "📦",
+    tar: "📦",
+    gz: "📦",
+
+    // Code
+    js: "💻",
+    html: "💻",
+    css: "💻",
+    php: "💻",
+    py: "💻",
+    java: "💻",
+    cpp: "💻",
+    c: "💻",
+    h: "💻",
+    json: "💻",
+    xml: "💻",
+
+    // Media
+    mp3: "🎵",
+    wav: "🎵",
+    flac: "🎵",
+    ogg: "🎵",
+    mp4: "🎬",
+    avi: "🎬",
+    mkv: "🎬",
+    mov: "🎬",
+    wmv: "🎬",
+
+    // Default
+    default: "📄",
+  };
+
+  return icons[ext] || icons.default;
+}
+
+// Close modals when clicking outside
+document.addEventListener("click", function (event) {
+  if (event.target.classList.contains("modal")) {
+    event.target.style.display = "none";
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener("keydown", function (event) {
+  if (event.key === "Escape") {
+    // Close all modals
+    document.querySelectorAll(".modal").forEach((modal) => {
+      modal.style.display = "none";
+    });
+  }
+
+  if (event.ctrlKey || event.metaKey) {
+    switch (event.key) {
+      case "a":
+        event.preventDefault();
+        toggleSelectAll();
+        break;
+      case "u":
+        event.preventDefault();
+        document.getElementById("fileInput").click();
+        break;
+    }
+  }
+
+  if (event.key === "Delete" && selectedFiles.size > 0) {
+    deleteSelected();
+  }
+});

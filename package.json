@@ -1,0 +1,23 @@
+{
+  "name": "evernode-file-manager",
+  "version": "1.0.0",
+  "description": "Modern, secure web-based file manager for Evernode instances",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "archiver": "^5.3.1",
+    "yauzl": "^2.10.0"
+  },
+  "keywords": [
+    "file-manager",
+    "evernode",
+    "node.js",
+    "express"
+  ],
+  "author": "Evernode File Manager",
+  "license": "MIT"
+}

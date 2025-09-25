@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evernode File Manager</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* ========== THEME VARIABLES ========== */
+      :root {
+        /* Light mode colors */
+        --bg-body: #888888;
+        --bg-container: white;
+        --bg-content: #f8f9fa;
+        --bg-upload: #e3f2fd;
+        --text-primary: #333;
+        --text-secondary: #666;
+        --text-muted: #95a5a6;
+        --border-color: #ddd;
+        --border-light: #f1f3f4;
+        --shadow: rgba(0, 0, 0, 0.1);
+        --shadow-light: rgba(0, 0, 0, 0.05);
+      }
+
+      [data-theme="dark"] {
+        /* Dark mode colors */
+        --bg-body: #2c3e50;
+        --bg-container: #34495e;
+        --bg-content: #2c3e50;
+        --bg-upload: #34495e;
+        --text-primary: #ecf0f1;
+        --text-secondary: #bdc3c7;
+        --text-muted: #7f8c8d;
+        --border-color: #4a5568;
+        --border-light: #4a5568;
+        --shadow: rgba(0, 0, 0, 0.3);
+        --shadow-light: rgba(0, 0, 0, 0.2);
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: var(--bg-body);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+
+      /* ========== LAYOUT CONTAINER ========== */
+      .app-container {
+        width: 85%;
+        max-width: none;
+        margin: 0 auto;
+        background: var(--bg-container);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 0 20px var(--shadow);
+        border-radius: 15px 15px 0 0;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      @media (max-width: 1200px) {
+        .app-container {
+          width: 85%;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .app-container {
+          width: 90%;
+        }
+      }
+
+      /* ========== HEADER STYLES ========== */
+      .header {
+        background: transparent;
+        color: var(--text-primary);
+        padding: 1rem 2rem;
+        margin-top: 7px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .header h1 {
+        font-size: 2.6rem;
+        font-style: regular; /* stylish italic */
+        font-weight: 500; /* slightly bolder for impact */
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--text-primary);
+        letter-spacing: 1.5px; /* subtle spacing for a sleek look */
+        text-transform: uppercase;
+        position: relative;
+      }
+
+      .evernode-logo {
+        height: 3rem;
+        width: auto;
+        object-fit: contain;
+        border-radius: 4px;
+      }
+
+      .evernode-logo:error {
+        display: none;
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      /* Authentication */
+      .auth-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .auth-box {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        width: 90%;
+        max-width: 400px;
+      }
+
+      .auth-box h2 {
+        margin-bottom: 1rem;
+        color: #2c3e50;
+      }
+
+      /* ========== NAVIGATION ========== */
+      .breadcrumb {
+        background: #ecf0f1;
+        padding: 1rem 2rem;
+        border-bottom: 1px solid #e1e8ed;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .breadcrumb-item {
+        color: #3498db;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 500;
+      }
+
+      .breadcrumb-item:hover {
+        text-decoration: underline;
+      }
+
+      .breadcrumb-separator {
+        color: var(--text-muted);
+      }
+
+      /* ========== MENU BAR ========== */
+      .menu-bar {
+        background: var(--bg-container);
+        padding: 1rem 2rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+      }
+
+      .menu-item {
+        color: var(--text-primary);
+        text-decoration: none;
+        padding: 0.6rem 1.2rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--bg-content);
+        border: 1px solid var(--border-light);
+        box-shadow: 0 2px 4px var(--shadow-light);
+      }
+
+      .menu-item:hover {
+        background: #3498db;
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px var(--shadow);
+        text-decoration: none;
+      }
+
+      .menu-item .arrow {
+        font-size: 0.8rem;
+        opacity: 0.7;
+      }
+
+      @media (max-width: 768px) {
+        .menu-bar {
+          gap: 1rem;
+          padding: 1rem;
+        }
+
+        .menu-item {
+          padding: 0.5rem 1rem;
+          font-size: 0.85rem;
+        }
+      }
+
+      /* ========== EVERNODE CONTROL BUTTONS ========== */
+      .evernode-btn {
+        background: #95a5a6;
+        color: white;
+        border: none;
+        padding: 0.5rem 0.8rem;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .evernode-btn.stop:hover {
+        background: #e74c3c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+      }
+
+      .evernode-btn.restart:hover {
+        background: #27ae60;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+      }
+
+      /* Action buttons below breadcrumb */
+      .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin: 1rem 0;
+        padding: 0 2rem;
+      }
+
+      .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.875rem;
+        border-radius: 4px;
+      }
+
+      /* ========== MAIN CONTENT ========== */
+      .main-content {
+        padding: 2rem;
+        background: var(--bg-content);
+        transition: background-color 0.3s ease;
+      }
+
+      /* ========== UPLOAD AREAS ========== */
+      .upload-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      @media (max-width: 768px) {
+        .upload-section {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-align: center;
+        background: var(--bg-container);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        color: var(--text-primary);
+      }
+
+      .upload-area:hover,
+      .upload-area.drag-over {
+        border-color: #3498db;
+        background: #f8fbff;
+      }
+
+      .upload-area.drag-over {
+        border-style: solid;
+        background: #e3f2fd;
+      }
+
+      /* File list */
+      .file-list {
+        background: var(--bg-container);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px var(--shadow-light);
+        overflow: hidden;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      /* Up one level button */
+      .up-level-container {
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .up-level-btn {
+        background: white;
+        color: #333;
+        border: 2px solid #ddd;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .up-level-btn:hover {
+        background: #f8f9fa;
+        border-color: #bbb;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+      }
+
+      .btn-secondary {
+        background: white;
+        color: #333;
+        border: 2px solid #ddd;
+      }
+
+      .btn-secondary:hover {
+        background: #f8f9fa;
+        border-color: #bbb;
+      }
+
+      .file-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-light);
+        transition: background-color 0.2s ease;
+        gap: 1rem;
+        color: var(--text-primary);
+      }
+
+      .file-item:hover {
+        background: var(--bg-content);
+      }
+
+      .file-item:last-child {
+        border-bottom: none;
+      }
+
+      .file-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+
+      .file-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .file-name {
+        font-weight: 500;
+        color: #2c3e50;
+        cursor: pointer;
+        word-break: break-word;
+      }
+
+      .file-name:hover {
+        color: #3498db;
+      }
+
+      .file-meta {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+        margin-top: 0.25rem;
+      }
+
+      .file-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+      }
+
+      /* Buttons */
+      .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary {
+        background: #3498db;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #2980b9;
+      }
+
+      .btn-success {
+        background: #27ae60;
+        color: white;
+      }
+
+      .btn-success:hover {
+        background: #219a52;
+      }
+
+      .btn-warning {
+        background: #f39c12;
+        color: white;
+      }
+
+      .btn-warning:hover {
+        background: #e67e22;
+      }
+
+      .btn-danger {
+        background: #e74c3c;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #c0392b;
+      }
+
+      .btn-danger-orange {
+        background: #ff6b35;
+        color: white;
+        font-weight: 600;
+      }
+
+      .btn-danger-orange:hover {
+        background: #e55a2b;
+        transform: translateY(-1px);
+      }
+
+      .btn-small {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+      }
+
+      .btn-tiny {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        min-width: 30px;
+      }
+
+      /* Form elements */
+      .form-group {
+        margin-bottom: 1rem;
+      }
+
+      .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #2c3e50;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+      }
+
+      /* Status messages */
+      .status {
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        display: none;
+      }
+
+      .status.success {
+        background: #d5f4e6;
+        color: #27ae60;
+        border: 1px solid #a3d9a3;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #e74c3c;
+        border: 1px solid #f5c6cb;
+      }
+
+      /* Modal */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 8px;
+        padding: 2rem;
+        width: 100%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+
+      .modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0.25rem;
+        color: #95a5a6;
+      }
+
+      .modal-close:hover {
+        color: #2c3e50;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+      }
+
+      /* Purge Modal Styles */
+      .purge-step {
+        line-height: 1.6;
+      }
+
+      .purge-step ul {
+        background: rgba(231, 76, 60, 0.1);
+        border-left: 4px solid #e74c3c;
+        padding: 15px 20px;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+
+      .purge-step input[type="text"] {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 2px solid #ff6b35;
+      }
+
+      .purge-step input[type="text"]:focus {
+        outline: none;
+        border-color: #e74c3c;
+        box-shadow: 0 0 5px rgba(231, 76, 60, 0.3);
+      }
+
+      /* Footer */
+      .footer {
+        background: white;
+        border-top: 1px solid #e1e8ed;
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .footer-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .selection-info {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+      }
+
+      /* Loading */
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+        color: #7f8c8d;
+      }
+
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #7f8c8d;
+      }
+
+      .empty-state h3 {
+        margin-bottom: 0.5rem;
+        color: #95a5a6;
+      }
+
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .header {
+          padding: 1rem;
+        }
+
+        .header h1 {
+          font-size: 1.25rem;
+        }
+
+        .main-content {
+          padding: 1rem;
+        }
+
+        .breadcrumb {
+          padding: 0.75rem 1rem;
+        }
+
+        .file-item {
+          padding: 0.75rem 1rem;
+          flex-wrap: wrap;
+        }
+
+        .file-actions {
+          width: 100%;
+          justify-content: flex-end;
+          margin-top: 0.5rem;
+        }
+
+        .footer {
+          padding: 1rem;
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .footer-actions {
+          justify-content: center;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .btn {
+          padding: 0.4rem 0.6rem;
+          font-size: 0.8rem;
+        }
+
+        .btn-small {
+          padding: 0.2rem 0.4rem;
+          font-size: 0.7rem;
+        }
+      }
+
+      /* Utilities */
+      .hidden {
+        display: none !important;
+      }
+
+      .text-center {
+        text-align: center;
+      }
+
+      .mb-0 {
+        margin-bottom: 0;
+      }
+      .mb-1 {
+        margin-bottom: 0.5rem;
+      }
+      .mb-2 {
+        margin-bottom: 1rem;
+      }
+      .mt-1 {
+        margin-top: 0.5rem;
+      }
+      .mt-2 {
+        margin-top: 1rem;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .checkbox {
+        margin-right: 0.75rem;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      /* ========== FILE MANAGER SECTION MARKER ========== */
+      .file-manager-marker {
+        text-align: left;
+        padding: 0.75rem 2rem;
+        margin-bottom: 0;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-container);
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+      }
+
+      .file-manager-marker h2 {
+        color: var(--text-primary);
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .file-manager-marker h2::before {
+        content: "📁";
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Authentication Modal -->
+    <div id="authContainer" class="auth-container">
+      <div class="auth-box">
+        <h2>File Manager Access</h2>
+        <form id="authForm">
+          <div class="form-group">
+            <label class="form-label">Password:</label>
+            <input
+              type="password"
+              id="passwordInput"
+              class="form-input"
+              placeholder="Enter password"
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="app-container">
+      <!-- Header -->
+      <header class="header">
+        <h1>
+          <img
+            src="images/evernode-logo.png"
+            class="evernode-logo"
+            alt="Evernode Logo"
+          />COMMANDER
+        </h1>
+        <div class="header-actions">
+          <a
+            href="javascript:void(0)"
+            class="evernode-btn stop"
+            target="_blank"
+          >
+            Stop Evernode (HP)
+          </a>
+          <a
+            href="javascript:void(0)"
+            class="evernode-btn restart"
+            target="_blank"
+          >
+            Restart Evernode (HP)
+          </a>
+          <button
+            id="darkModeToggle"
+            class="btn btn-secondary"
+            onclick="toggleDarkMode()"
+            title="Toggle dark mode"
+          >
+            🌙 Dark
+          </button>
+          <button id="logoutBtn" class="btn btn-danger" onclick="logout()">
+            🚪 Logout
+          </button>
+        </div>
+      </header>
+
+      <!-- Breadcrumb Navigation -->
+
+      <nav class="breadcrumb" id="breadcrumb">
+        <a href="#" class="breadcrumb-item" onclick="location.reload()"
+          >🔄 Refresh</a
+        >
+        <span class="breadcrumb-separator">::</span>
+        <a href="/admin" class="breadcrumb-item" target="_blank"
+          >🔧 WebCBuilder ↗</a
+        >
+        <span class="breadcrumb-separator">::</span>
+        <a href="/" class="breadcrumb-item" target="_blank">🌐 Root ↗</a>
+        <span class="breadcrumb-separator">::</span>
+        <a href="#" class="breadcrumb-item" data-path="">🏠 Home</a>
+      </nav>
+
+      <!-- Menu Bar -->
+      <nav class="menu-bar">
+        <a href="" class="menu-item" target="_blank">
+          Users <span class="arrow">↗</span>
+        </a>
+        <a href="" class="menu-item" target="_blank">
+          Cluster Files | Settings | Logs <span class="arrow">↗</span>
+        </a>
+        <a href="" class="menu-item" target="_blank">
+          Side Dish <span class="arrow">↗</span>
+        </a>
+        <a href="" class="menu-item" target="_blank">
+          Node.js Endpoints <span class="arrow">↗</span>
+        </a>
+        <a href="" class="menu-item" target="_blank">
+          Variables <span class="arrow">↗</span>
+        </a>
+        <a href="" class="menu-item" target="_blank">
+          Node JS <span class="arrow">↗</span>
+        </a>
+        <a href="" class="menu-item" target="_blank">
+          Functions <span class="arrow">↗</span>
+        </a>
+      </nav>
+
+      <!-- File Manager Section Marker -->
+      <div class="file-manager-marker">
+        <h2>THE PAYLOAD MANAGER ↴</h2>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="createFileBtn" class="btn btn-sm btn-warning">
+          📄 Create File
+        </button>
+        <button id="createFolderBtn" class="btn btn-sm btn-success">
+          📁 New Folder
+        </button>
+        <button id="uploadBtn" class="btn btn-sm btn-primary">
+          📤 Upload Files
+        </button>
+        <button id="uploadFolderBtn" class="btn btn-sm btn-primary">
+          📁 Upload Folder
+        </button>
+        <button id="purgeBtn" class="btn btn-sm btn-danger-orange">
+          🗑️ Purge
+        </button>
+      </div>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Status Messages -->
+        <div id="status" class="status"></div>
+
+        <!-- Upload Areas -->
+        <div class="upload-section">
+          <!-- File Upload Area -->
+          <div id="uploadArea" class="upload-area">
+            <div>
+              <p><strong>📤 Drop files here</strong></p>
+              <p>or <a href="#" id="uploadLink">click to select files</a></p>
+              <small>Supports multiple files and ZIP extraction</small>
+            </div>
+            <input type="file" id="fileInput" multiple accept="*/*" />
+          </div>
+
+          <!-- Folder Upload Area -->
+          <div id="folderUploadArea" class="upload-area">
+            <div>
+              <p><strong>📁 Drop folder here</strong></p>
+              <p>
+                or <a href="#" id="folderUploadLink">click to select folder</a>
+              </p>
+              <small>Preserves folder structure</small>
+            </div>
+            <input type="file" id="folderInput" webkitdirectory multiple />
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading">
+          <p>Loading files...</p>
+        </div>
+
+        <!-- Up One Level Button -->
+        <div id="upLevelContainer" class="up-level-container hidden">
+          <button
+            id="upLevelBtn"
+            class="btn btn-secondary up-level-btn"
+            onclick="goUpOneLevel()"
+          >
+            ⬆️ Up One Level
+          </button>
+        </div>
+
+        <!-- File List -->
+        <div id="fileList" class="file-list">
+          <!-- Files will be populated here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state hidden">
+          <h3>No files found</h3>
+          <p>Upload some files to get started</p>
+        </div>
+      </main>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <div class="selection-info">
+          <span id="selectionCount">0 items selected</span>
+        </div>
+        <div class="footer-actions">
+          <button id="selectAllBtn" class="btn btn-primary btn-small">
+            Select All
+          </button>
+          <button id="downloadBtn" class="btn btn-success btn-small" disabled>
+            📥 Download
+          </button>
+          <button id="deleteBtn" class="btn btn-danger btn-small" disabled>
+            🗑️ Delete
+          </button>
+        </div>
+      </footer>
+
+      <!-- Deployment Help Button -->
+      <div
+        style="
+          text-align: center;
+          padding: 1rem 0;
+          border-top: 1px solid var(--border-light);
+        "
+      >
+        <button
+          id="deploymentHelpBtn"
+          class="btn btn-secondary btn-small"
+          onclick="openModal('deploymentModal')"
+        >
+          📋 Deployment Instructions
+        </button>
+      </div>
+    </div>
+    <!-- End app-container -->
+
+    <!-- Modals -->
+
+    <!-- Rename Modal -->
+    <div id="renameModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Rename Item</h3>
+          <button class="modal-close" onclick="closeModal('renameModal')">
+            &times;
+          </button>
+        </div>
+        <form id="renameForm">
+          <div class="form-group">
+            <label class="form-label">New Name:</label>
+            <input type="text" id="renameInput" class="form-input" required />
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn"
+              onclick="closeModal('renameModal')"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Rename</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- CHMOD Modal -->
+    <div id="chmodModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Change Permissions</h3>
+          <button class="modal-close" onclick="closeModal('chmodModal')">
+            &times;
+          </button>
+        </div>
+        <form id="chmodForm">
+          <div class="form-group">
+            <label class="form-label">Permissions (e.g., 644, 755):</label>
+            <input
+              type="text"
+              id="chmodInput"
+              class="form-input"
+              pattern="[0-7]{3}"
+              placeholder="644"
+              required
+            />
+            <small
+              >Common: 644 (files), 755 (folders), 777 (all permissions)</small
+            >
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn"
+              onclick="closeModal('chmodModal')"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Change</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div id="createFolderModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Create New Folder</h3>
+          <button class="modal-close" onclick="closeModal('createFolderModal')">
+            &times;
+          </button>
+        </div>
+        <form id="createFolderForm">
+          <div class="form-group">
+            <label class="form-label">Folder Name:</label>
+            <input
+              type="text"
+              id="folderNameInput"
+              class="form-input"
+              required
+            />
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn"
+              onclick="closeModal('createFolderModal')"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-success">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Create File Modal -->
+    <div id="createFileModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Create New File</h3>
+          <button class="modal-close" onclick="closeModal('createFileModal')">
+            &times;
+          </button>
+        </div>
+        <form id="createFileForm">
+          <div class="form-group">
+            <label class="form-label">File Name (with extension):</label>
+            <input
+              type="text"
+              id="fileNameInput"
+              class="form-input"
+              placeholder="example.txt"
+              required
+            />
+            <small
+              >Include the file extension (e.g. .txt, .js, .html, .css)</small
+            >
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn"
+              onclick="closeModal('createFileModal')"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-warning">Create & Edit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Text Editor Modal -->
+    <div id="textEditorModal" class="modal">
+      <div
+        class="modal-content"
+        style="width: 90%; max-width: 1000px; height: 80vh"
+      >
+        <div class="modal-header">
+          <h3 class="modal-title">
+            Edit File: <span id="editFileName"></span>
+          </h3>
+          <div style="display: flex; align-items: center; gap: 1rem">
+            <div style="display: flex; align-items: center; gap: 0.5rem">
+              <label style="font-size: 14px; color: #666">Text Size:</label>
+              <button
+                type="button"
+                class="btn btn-tiny"
+                onclick="changeTextSize(-2)"
+                title="Decrease font size"
+              >
+                A-
+              </button>
+              <span
+                id="currentFontSize"
+                style="
+                  font-size: 14px;
+                  color: #666;
+                  min-width: 35px;
+                  text-align: center;
+                "
+                >18px</span
+              >
+              <button
+                type="button"
+                class="btn btn-tiny"
+                onclick="changeTextSize(2)"
+                title="Increase font size"
+              >
+                A+
+              </button>
+            </div>
+            <button class="modal-close" onclick="closeModal('textEditorModal')">
+              &times;
+            </button>
+          </div>
+        </div>
+        <div
+          style="flex: 1; display: flex; flex-direction: column; padding: 1rem"
+        >
+          <textarea
+            id="fileContentEditor"
+            style="
+              flex: 1;
+              min-height: 400px;
+              font-family: 'Courier New', monospace;
+              font-size: 18px;
+              line-height: 1.4;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              padding: 1rem;
+              resize: none;
+            "
+            placeholder="File content..."
+          ></textarea>
+          <div class="modal-actions" style="margin-top: 1rem">
+            <button
+              type="button"
+              class="btn"
+              onclick="closeModal('textEditorModal')"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveFile()">
+              Save File
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="modal">
+      <div class="modal-content" style="max-width: 400px">
+        <div class="modal-header">
+          <h3 class="modal-title">Logged Out</h3>
+        </div>
+        <div style="padding: 1rem">
+          <p style="margin-bottom: 1.5rem; text-align: center">
+            🚪 You have been successfully logged out.
+          </p>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="proceedToLogin()"
+            >
+              Login Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Purge Confirmation Modal -->
+    <div id="purgeModal" class="modal">
+      <div class="modal-content" style="max-width: 500px">
+        <div class="modal-header">
+          <h3 id="purgeModalTitle">⚠️ DANGER ZONE - Purge All Files</h3>
+          <button class="modal-close" onclick="closePurgeModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="purgeStep1" class="purge-step">
+            <p style="color: #ff6b35; font-weight: bold; margin-bottom: 15px">
+              ⚠️ WARNING: This will permanently delete ALL files and folders on
+              this Evernode instance!
+            </p>
+            <p style="margin-bottom: 15px">
+              This action cannot be undone. The file manager itself will be
+              preserved, but everything else will be removed.
+            </p>
+            <p style="font-weight: bold">
+              Are you absolutely sure you want to continue?
+            </p>
+            <div class="modal-buttons" style="margin-top: 20px">
+              <button class="btn btn-secondary" onclick="closePurgeModal()">
+                Cancel
+              </button>
+              <button class="btn btn-danger-orange" onclick="showPurgeStep2()">
+                Yes, Continue
+              </button>
+            </div>
+          </div>
+
+          <div id="purgeStep2" class="purge-step" style="display: none">
+            <p
+              style="
+                color: #e74c3c;
+                font-weight: bold;
+                font-size: 1.1rem;
+                margin-bottom: 15px;
+              "
+            >
+              🚨 FINAL WARNING 🚨
+            </p>
+            <p style="margin-bottom: 15px">
+              You are about to permanently delete ALL files and folders. This
+              will:
+            </p>
+            <ul style="margin: 15px 0; padding-left: 20px; color: #e74c3c">
+              <li>Delete all uploaded files</li>
+              <li>Delete all created folders</li>
+              <li>Remove all user data</li>
+              <li>Cannot be reversed or undone</li>
+            </ul>
+            <p style="font-weight: bold; color: #e74c3c">
+              Type "PURGE" below to confirm this destructive action:
+            </p>
+            <input
+              type="text"
+              id="purgeConfirmInput"
+              placeholder="Type PURGE to confirm"
+              style="
+                width: 100%;
+                padding: 8px;
+                margin: 10px 0;
+                border: 2px solid #e74c3c;
+                border-radius: 4px;
+              "
+            />
+            <div class="modal-buttons" style="margin-top: 20px">
+              <button class="btn btn-secondary" onclick="closePurgeModal()">
+                Cancel
+              </button>
+              <button
+                class="btn btn-danger-orange"
+                onclick="executePurge()"
+                id="finalPurgeBtn"
+                disabled
+              >
+                🗑️ PURGE EVERYTHING
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== DEPLOYMENT INSTRUCTIONS MODAL (Easy to comment out) ========== -->
+    <div id="deploymentModal" class="modal" style="z-index: 10000">
+      <div
+        class="modal-content"
+        style="width: 90%; max-width: 800px; height: 80vh; overflow-y: auto"
+      >
+        <div class="modal-header">
+          <h3 class="modal-title">🚀 Evernode Deployment Instructions</h3>
+          <button class="modal-close" onclick="closeModal('deploymentModal')">
+            &times;
+          </button>
+        </div>
+        <div style="padding: 1.5rem">
+          <div
+            class="deployment-options"
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 2rem;
+              margin-bottom: 2rem;
+            "
+          >
+            <div class="deployment-option">
+              <h5
+                style="color: #3498db; margin-bottom: 0.5rem; font-size: 1rem"
+              >
+                📁 Option 1: Root Directory (Recommended)
+              </h5>
+              <p
+                style="
+                  color: var(--text-secondary);
+                  margin-bottom: 0.75rem;
+                  font-size: 0.9rem;
+                "
+              >
+                Deploy directly in your Evernode instance root directory:
+              </p>
+              <code
+                style="
+                  background: var(--bg-upload);
+                  border: 1px solid var(--border-light);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  display: block;
+                  font-family: 'Courier New', monospace;
+                  font-size: 0.8rem;
+                  white-space: pre-line;
+                  color: var(--text-primary);
+                "
+                >/root/ ├── index.js (file manager server) ├── package.json ├──
+                public/ │ ├── index.html │ ├── app.js │ └── images/ └── (other
+                Evernode files)</code
+              >
+            </div>
+
+            <div class="deployment-option">
+              <h5
+                style="color: #3498db; margin-bottom: 0.5rem; font-size: 1rem"
+              >
+                📂 Option 2: Subdirectory
+              </h5>
+              <p
+                style="
+                  color: var(--text-secondary);
+                  margin-bottom: 0.75rem;
+                  font-size: 0.9rem;
+                "
+              >
+                Create a subfolder with reverse proxy setup:
+              </p>
+              <code
+                style="
+                  background: var(--bg-upload);
+                  border: 1px solid var(--border-light);
+                  padding: 1rem;
+                  border-radius: 4px;
+                  display: block;
+                  font-family: 'Courier New', monospace;
+                  font-size: 0.8rem;
+                  white-space: pre-line;
+                  color: var(--text-primary);
+                "
+                >/root/ ├── file-manager/ │ ├── index.js │ ├── package.json │
+                └── public/ └── (main Evernode app)</code
+              >
+            </div>
+          </div>
+
+          <div
+            class="deployment-notes"
+            style="
+              background: var(--bg-upload);
+              border: 1px solid var(--border-light);
+              border-radius: 6px;
+              padding: 1.5rem;
+            "
+          >
+            <h5 style="color: #f39c12; margin-bottom: 1rem; font-size: 1rem">
+              ⚙️ Important Configuration:
+            </h5>
+            <ul style="margin: 0; padding-left: 1.5rem">
+              <li style="color: var(--text-secondary); margin-bottom: 0.5rem">
+                <strong style="color: var(--text-primary)">Port:</strong> Ensure
+                file manager runs on different port than main app (default:
+                3000)
+              </li>
+              <li style="color: var(--text-secondary); margin-bottom: 0.5rem">
+                <strong style="color: var(--text-primary)">File Access:</strong>
+                Verify read/write permissions for target directories
+              </li>
+              <li style="color: var(--text-secondary); margin-bottom: 0.5rem">
+                <strong style="color: var(--text-primary)">Security:</strong>
+                Configure authentication for production use
+              </li>
+              <li style="color: var(--text-secondary); margin-bottom: 0.5rem">
+                <strong style="color: var(--text-primary)"
+                  >Process Management:</strong
+                >
+                Consider PM2 for production deployment
+              </li>
+            </ul>
+          </div>
+
+          <!-- ⚠️ CRITICAL SECURITY SECTION ⚠️ -->
+          <div
+            style="
+              margin-top: 2rem;
+              padding: 1.5rem;
+              background: #fff5f5;
+              border: 2px solid #ff6b6b;
+              border-radius: 8px;
+            "
+          >
+            <h5
+              style="
+                color: #e74c3c;
+                margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="font-size: 1.2rem">⚠️</span> CRITICAL SECURITY
+              WARNINGS
+            </h5>
+            <div
+              style="
+                background: #ffe6e6;
+                padding: 1rem;
+                border-radius: 6px;
+                margin-bottom: 1rem;
+                border-left: 4px solid #e74c3c;
+              "
+            >
+              <p
+                style="color: #c0392b; font-weight: 600; margin-bottom: 0.5rem"
+              >
+                🚨 NEVER deploy without proper security configuration!
+              </p>
+              <ul style="margin: 0; padding-left: 1.25rem; color: #c0392b">
+                <li style="margin-bottom: 0.3rem">
+                  This file manager has FULL file system access
+                </li>
+                <li style="margin-bottom: 0.3rem">
+                  Default password is easily guessable
+                </li>
+                <li style="margin-bottom: 0.3rem">
+                  No HTTPS by default - credentials sent in plain text
+                </li>
+                <li style="margin-bottom: 0.3rem">
+                  No rate limiting - vulnerable to brute force attacks
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 🔒 SECURITY CHECKLIST -->
+          <div
+            style="
+              margin-top: 1.5rem;
+              padding: 1.5rem;
+              background: #f8f9ff;
+              border: 1px solid #6c7ce7;
+              border-radius: 8px;
+            "
+          >
+            <h5
+              style="
+                color: #5d5fef;
+                margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="font-size: 1.1rem">🔒</span> MANDATORY SECURITY
+              CHECKLIST
+            </h5>
+
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1.5rem;
+                margin-bottom: 1.5rem;
+              "
+            >
+              <div>
+                <h6
+                  style="
+                    color: #2c3e50;
+                    margin-bottom: 0.75rem;
+                    font-size: 0.95rem;
+                  "
+                >
+                  📝 Before Deployment:
+                </h6>
+                <ul
+                  style="
+                    margin: 0;
+                    padding-left: 1.25rem;
+                    color: #2c3e50;
+                    font-size: 0.85rem;
+                  "
+                >
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Change default password in index.js
+                  </li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Set proper file permissions (see below)
+                  </li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Configure HTTPS/SSL certificate
+                  </li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Set up firewall rules
+                  </li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Configure reverse proxy (recommended)
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h6
+                  style="
+                    color: #2c3e50;
+                    margin-bottom: 0.75rem;
+                    font-size: 0.95rem;
+                  "
+                >
+                  �️ Production Hardening:
+                </h6>
+                <ul
+                  style="
+                    margin: 0;
+                    padding-left: 1.25rem;
+                    color: #2c3e50;
+                    font-size: 0.85rem;
+                  "
+                >
+                  <li style="margin-bottom: 0.4rem">✅ Enable rate limiting</li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Set up fail2ban for brute force protection
+                  </li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Configure log monitoring
+                  </li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Restrict network access (IP whitelist)
+                  </li>
+                  <li style="margin-bottom: 0.4rem">
+                    ✅ Regular security updates
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- 🔐 STEP-BY-STEP SECURITY SETUP -->
+          <div
+            style="
+              margin-top: 1.5rem;
+              padding: 1.5rem;
+              background: #f0f8f0;
+              border: 1px solid #27ae60;
+              border-radius: 8px;
+            "
+          >
+            <h5
+              style="
+                color: #27ae60;
+                margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="font-size: 1.1rem">🔐</span> STEP-BY-STEP SECURITY
+              SETUP
+            </h5>
+
+            <div style="margin-bottom: 1.5rem">
+              <h6
+                style="
+                  color: #2c3e50;
+                  margin-bottom: 0.75rem;
+                  font-size: 0.95rem;
+                "
+              >
+                Step 1: Change Default Password
+              </h6>
+              <div
+                style="
+                  background: #333;
+                  color: #00ff00;
+                  padding: 1rem;
+                  border-radius: 4px;
+                  font-family: 'Courier New', monospace;
+                  font-size: 0.8rem;
+                  margin-bottom: 0.5rem;
+                "
+              >
+                # Edit index.js and change this line: const ADMIN_PASSWORD =
+                'your-secure-password-here'; # Use a strong password with: # -
+                At least 16 characters # - Mix of uppercase, lowercase, numbers,
+                symbols # - No dictionary words or personal info
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem">
+              <h6
+                style="
+                  color: #2c3e50;
+                  margin-bottom: 0.75rem;
+                  font-size: 0.95rem;
+                "
+              >
+                Step 2: Set Secure File Permissions
+              </h6>
+              <div
+                style="
+                  background: #333;
+                  color: #00ff00;
+                  padding: 1rem;
+                  border-radius: 4px;
+                  font-family: 'Courier New', monospace;
+                  font-size: 0.8rem;
+                  margin-bottom: 0.5rem;
+                "
+              >
+                # Set restrictive permissions on the file manager sudo chmod 700
+                /path/to/file-manager/ sudo chmod 600
+                /path/to/file-manager/index.js sudo chmod 644
+                /path/to/file-manager/public/* # Create dedicated user
+                (recommended) sudo useradd -r -s /bin/false filemanager sudo
+                chown -R filemanager:filemanager /path/to/file-manager/ # If you
+                need broader file access, use groups instead: sudo usermod -a -G
+                www-data filemanager
+              </div>
+              <p style="color: #e74c3c; font-size: 0.8rem; margin: 0.5rem 0">
+                ⚠️ Never run as root in production!
+              </p>
+            </div>
+
+            <div style="margin-bottom: 1.5rem">
+              <h6
+                style="
+                  color: #2c3e50;
+                  margin-bottom: 0.75rem;
+                  font-size: 0.95rem;
+                "
+              >
+                Step 3: Configure Firewall
+              </h6>
+              <div
+                style="
+                  background: #333;
+                  color: #00ff00;
+                  padding: 1rem;
+                  border-radius: 4px;
+                  font-family: 'Courier New', monospace;
+                  font-size: 0.8rem;
+                  margin-bottom: 0.5rem;
+                "
+              >
+                # Using ufw (Ubuntu/Debian) sudo ufw enable sudo ufw deny 3000 #
+                Block direct access sudo ufw allow from YOUR_IP_ADDRESS to any
+                port 3000 # Using iptables sudo iptables -A INPUT -p tcp --dport
+                3000 -s YOUR_IP_ADDRESS -j ACCEPT sudo iptables -A INPUT -p tcp
+                --dport 3000 -j DROP
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem">
+              <h6
+                style="
+                  color: #2c3e50;
+                  margin-bottom: 0.75rem;
+                  font-size: 0.95rem;
+                "
+              >
+                Step 4: Set Up Reverse Proxy (Nginx)
+              </h6>
+              <div
+                style="
+                  background: #333;
+                  color: #00ff00;
+                  padding: 1rem;
+                  border-radius: 4px;
+                  font-family: 'Courier New', monospace;
+                  font-size: 0.8rem;
+                  margin-bottom: 0.5rem;
+                "
+              >
+                # /etc/nginx/sites-available/filemanager server { listen 443
+                ssl; server_name your-domain.com; ssl_certificate
+                /path/to/certificate.crt; ssl_certificate_key
+                /path/to/private.key; location /admin { proxy_pass
+                http://127.0.0.1:3000; proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr; # Rate limiting
+                limit_req zone=admin burst=10 nodelay; } }
+              </div>
+            </div>
+          </div>
+
+          <!-- 🔗 SECURITY RESOURCES -->
+          <div
+            style="
+              margin-top: 1.5rem;
+              padding: 1.5rem;
+              background: #fff9e6;
+              border: 1px solid #f39c12;
+              border-radius: 8px;
+            "
+          >
+            <h5
+              style="
+                color: #f39c12;
+                margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="font-size: 1.1rem">📚</span> SECURITY RESOURCES &
+              REFERENCES
+            </h5>
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem"
+            >
+              <div>
+                <h6
+                  style="
+                    color: #2c3e50;
+                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem;
+                  "
+                >
+                  📖 Essential Reading:
+                </h6>
+                <ul
+                  style="
+                    margin: 0;
+                    padding-left: 1rem;
+                    color: #2c3e50;
+                    font-size: 0.8rem;
+                  "
+                >
+                  <li style="margin-bottom: 0.3rem">
+                    <a
+                      href="https://owasp.org/www-project-top-ten/"
+                      target="_blank"
+                      style="color: #3498db"
+                      >OWASP Top 10</a
+                    >
+                    - Web App Security
+                  </li>
+                  <li style="margin-bottom: 0.3rem">
+                    <a
+                      href="https://nodejs.org/en/docs/guides/security/"
+                      target="_blank"
+                      style="color: #3498db"
+                      >Node.js Security Guide</a
+                    >
+                  </li>
+                  <li style="margin-bottom: 0.3rem">
+                    <a
+                      href="https://expressjs.com/en/advanced/best-practice-security.html"
+                      target="_blank"
+                      style="color: #3498db"
+                      >Express Security Best Practices</a
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h6
+                  style="
+                    color: #2c3e50;
+                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem;
+                  "
+                >
+                  🛠️ Security Tools:
+                </h6>
+                <ul
+                  style="
+                    margin: 0;
+                    padding-left: 1rem;
+                    color: #2c3e50;
+                    font-size: 0.8rem;
+                  "
+                >
+                  <li style="margin-bottom: 0.3rem">
+                    <a
+                      href="https://github.com/fail2ban/fail2ban"
+                      target="_blank"
+                      style="color: #3498db"
+                      >Fail2Ban</a
+                    >
+                    - Brute force protection
+                  </li>
+                  <li style="margin-bottom: 0.3rem">
+                    <a
+                      href="https://www.ssllabs.com/ssltest/"
+                      target="_blank"
+                      style="color: #3498db"
+                      >SSL Labs Test</a
+                    >
+                    - SSL/TLS testing
+                  </li>
+                  <li style="margin-bottom: 0.3rem">
+                    <a
+                      href="https://github.com/mozilla/observatory-cli"
+                      target="_blank"
+                      style="color: #3498db"
+                      >Mozilla Observatory</a
+                    >
+                    - Security scan
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- 💡 FINAL TIPS -->
+          <div
+            style="
+              margin-top: 1.5rem;
+              padding: 1rem;
+              background: #e8f5e8;
+              border: 1px solid #c3e6c3;
+              border-radius: 6px;
+            "
+          >
+            <h5 style="color: #27ae60; margin-bottom: 0.75rem">
+              💡 Final Security Tips:
+            </h5>
+            <ul
+              style="
+                margin: 0;
+                padding-left: 1.5rem;
+                color: #2c3e50;
+                font-size: 0.85rem;
+              "
+            >
+              <li style="margin-bottom: 0.4rem">
+                🔄 Regularly update Node.js and dependencies
+              </li>
+              <li style="margin-bottom: 0.4rem">
+                📊 Monitor access logs for suspicious activity
+              </li>
+              <li style="margin-bottom: 0.4rem">
+                🔐 Use environment variables for sensitive config
+              </li>
+              <li style="margin-bottom: 0.4rem">
+                🧪 Test security configuration in staging first
+              </li>
+              <li style="margin-bottom: 0.4rem">
+                📱 Set up security alerts and monitoring
+              </li>
+              <li style="margin-bottom: 0.4rem">
+                💾 Regular backups of critical files
+              </li>
+            </ul>
+          </div>
+
+          <div style="text-align: center; margin-top: 2rem">
+            <button
+              class="btn btn-danger"
+              onclick="closeModal('deploymentModal')"
+              style="margin-right: 1rem"
+            >
+              I understand the risks ⚠️
+            </button>
+            <button
+              class="btn btn-primary"
+              onclick="closeModal('deploymentModal')"
+            >
+              Security configured! ✅
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ========== END DEPLOYMENT INSTRUCTIONS MODAL ========== -->
+
+    <script src="app.js"></script>
+  </body>
+</html>

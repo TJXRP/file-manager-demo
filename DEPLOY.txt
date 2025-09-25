@@ -1,0 +1,53 @@
+EVERNODE FILE MANAGER - DEPLOYMENT INSTRUCTIONS
+=============================================
+
+🚀 QUICK DEPLOYMENT:
+
+1. EXTRACT FILES:
+   - Extract "evernode-file-manager-complete.zip"
+   - You'll get: index.js, package.json, public/ folder, README.md
+
+2. FOR EVERNODE WebCBuilder:
+   - Upload these files individually (do NOT upload as ZIP):
+     * index.js
+     * package.json  
+     * public/index.html
+     * public/app.js
+     * README.md
+   
+   - WebCBuilder will automatically run "npm install" and "npm start"
+
+3. FOR MANUAL DEPLOYMENT:
+   - Run: npm install
+   - Run: npm start
+   - Access: http://your-server:3000/file-manager
+
+🔐 DEFAULT LOGIN:
+   Password: password
+   
+   To change password, set environment variable:
+   PASSWORD=your_new_password npm start
+
+📂 FEATURES:
+   ✅ Upload/Download files
+   ✅ Create/Delete folders  
+   ✅ Rename files/folders
+   ✅ Change permissions (CHMOD)
+   ✅ Drag & drop upload
+   ✅ ZIP extraction
+   ✅ Bulk operations
+   ✅ Mobile responsive
+   ✅ Secure authentication
+
+🌐 ACCESS:
+   The file manager runs at: /file-manager/
+   Example: http://your-evernode-instance.com/file-manager/
+
+🛡️ SECURITY:
+   - Password protected
+   - Path traversal protection
+   - File sanitization
+   - Safe CHMOD validation
+   - Upload size limits
+   
+For full documentation, see README.md
