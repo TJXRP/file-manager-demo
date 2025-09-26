@@ -1,3 +1,33 @@
+<!-- Extract ZIP Modal -->
+<div id="extractModal" class="modal">
+  <div class="modal-content" style="max-width: 400px">
+    <div class="modal-header">
+      <h3 class="modal-title">Extract ZIP File</h3>
+      <button class="modal-close" onclick="closeModal('extractModal')">
+        &times;
+      </button>
+    </div>
+    <form id="extractForm" onsubmit="submitExtract(event)">
+      <div class="form-group">
+        <label class="form-label">Destination Folder:</label>
+        <input
+          type="text"
+          id="extractDestInput"
+          class="form-input"
+          placeholder="e.g. / or /myfolder"
+          required
+        />
+        <input type="hidden" id="extractZipPath" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeModal('extractModal')">
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary">Extract</button>
+      </div>
+    </form>
+  </div>
+</div>
 <!DOCTYPE html>
 <html lang="en">
   <head>

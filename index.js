@@ -1,3 +1,11 @@
+// ...existing code...
+
+// ...existing code...
+// ...existing code...
+// Extract ZIP file to a target directory (must be after app and requires)
+// This must be placed after all requires and after 'const app = express();'
+
+// ...existing code...
 const express = require("express");
 const fs = require("fs").promises;
 const path = require("path");
@@ -86,16 +94,41 @@ const upload = multer({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from public directory
-app.use(BASE_PATH, express.static("public"));
-
 // Debug: Log all API routes being registered
 console.log(`🔧 Registering API routes with BASE_PATH: "${BASE_PATH}"`);
 console.log(`🔧 API endpoints will be: ${BASE_PATH}/api/*`);
 
 // API Routes - all protected by authentication
 
-// List files and directories
+// Extract ZIP file to a target directory (must be after app and requires)
+app.post(`${BASE_PATH}/api/extract-zip`, authenticate, async (req, res) => {
+  try {
+    const { zipPath, destPath } = req.body;
+    if (!zipPath || !destPath) {
+      return res
+        .status(400)
+        .json({ error: "zipPath and destPath are required" });
+    }
+    if (path.extname(zipPath).toLowerCase() !== ".zip") {
+      return res
+        .status(400)
+        .json({ error: "Only .zip files can be extracted" });
+    }
+    const fullZipPath = getSecurePath(zipPath);
+    const fullDestPath = getSecurePath(destPath);
+    // Ensure zip file exists
+    await fs.access(fullZipPath);
+    // Ensure destination directory exists
+    await fs.mkdir(fullDestPath, { recursive: true });
+    await extractZip(fullZipPath, fullDestPath);
+    res.json({ message: "ZIP extracted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve static files from public directory (after API routes)
+app.use(BASE_PATH, express.static("public"));
 app.get(`${BASE_PATH}/api/files`, authenticate, async (req, res) => {
   try {
     const requestPath = req.query.path || "";

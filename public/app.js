@@ -1,12 +1,53 @@
+// --- Extract ZIP Modal Logic ---
+function openExtractModal(zipPath) {
+  document.getElementById("extractZipPath").value = zipPath;
+  document.getElementById("extractDestInput").value = currentPath || "/";
+  openModal("extractModal");
+}
+
+async function submitExtract(event) {
+  event.preventDefault();
+  const zipPath = document.getElementById("extractZipPath").value;
+  const destPath =
+    document.getElementById("extractDestInput").value.trim() || "/";
+  if (!zipPath || !destPath) {
+    showStatus("ZIP path and destination are required.", "error");
+    return;
+  }
+  showStatus("Extracting ZIP file...", "success");
+  const data = await apiRequest(`${BASE_PATH}/api/extract-zip`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ zipPath, destPath }),
+  });
+  if (data && !data.error) {
+    showStatus("ZIP extracted successfully!", "success");
+    closeModal("extractModal");
+    loadFiles(currentPath);
+  } else {
+    showStatus(data && data.error ? data.error : "Extraction failed.", "error");
+  }
+}
+
+// --- End Extract ZIP Modal Logic ---
 // File Manager JavaScript
-const BASE_PATH = ""; // Changed from "/file-manager" to "" for shared hosting
+// Use config from window.FILE_MANAGER_CONFIG if available
+const BASE_PATH =
+  window.FILE_MANAGER_CONFIG &&
+  window.FILE_MANAGER_CONFIG.BASE_PATH !== undefined
+    ? window.FILE_MANAGER_CONFIG.BASE_PATH
+    : "";
 let currentPath = "";
 let authToken = "";
 let selectedFiles = new Set();
 
 // === DEBUG FLAG ===
-// Set to true for verbose error reporting, false for production
-window.FILE_MANAGER_DEBUG = true;
+// Use config from window.FILE_MANAGER_CONFIG if available
+window.FILE_MANAGER_DEBUG =
+  window.FILE_MANAGER_CONFIG &&
+  typeof window.FILE_MANAGER_CONFIG.DEBUG === "boolean"
+    ? window.FILE_MANAGER_CONFIG.DEBUG
+    : true;
 // Persist debug flag in localStorage
 if (localStorage.getItem("fileManagerDebug") !== null) {
   window.FILE_MANAGER_DEBUG =
@@ -348,8 +389,10 @@ function renderFileList(files) {
   emptyState.classList.add("hidden");
 
   fileList.innerHTML = files
-    .map(
-      (file) => `
+    .map((file) => {
+      const isZip =
+        !file.isDirectory && file.name.toLowerCase().endsWith(".zip");
+      return `
         <div class="file-item" data-path="${escapeHtml(file.path)}">
             <input type="checkbox" class="checkbox" data-file="${escapeHtml(
               file.path
@@ -394,6 +437,13 @@ function renderFileList(files) {
                 `
                     : ""
                 }
+                ${
+                  isZip
+                    ? `<button class="btn btn-small btn-info" onclick="openExtractModal('${escapeHtml(
+                        file.path
+                      )}')">🗜️ Extract</button>`
+                    : ""
+                }
                 <button class="btn btn-small btn-danger" onclick="deleteFile('${escapeHtml(
                   file.path
                 )}')">
@@ -401,8 +451,8 @@ function renderFileList(files) {
                 </button>
             </div>
         </div>
-    `
-    )
+    `;
+    })
     .join("");
 
   // Add checkbox listeners
@@ -1083,24 +1133,24 @@ function getFileIcon(filename) {
     csv: "📊",
 
     // Archives
-    zip: "📦",
+    zip: "🗜️",
     rar: "📦",
     "7z": "📦",
     tar: "📦",
     gz: "📦",
 
     // Code
-    js: "💻",
-    html: "💻",
-    css: "💻",
-    php: "💻",
-    py: "💻",
-    java: "💻",
-    cpp: "💻",
-    c: "💻",
-    h: "💻",
-    json: "💻",
-    xml: "💻",
+    js: "💻", // JavaScript
+    html: "💻", // HTML
+    css: "💻", // CSS
+    php: "💻", // PHP
+    py: "💻", // Python
+    java: "💻", // Java
+    cpp: "💻", // C++
+    c: "💻", // C
+    h: "💻", // Header
+    json: "💻", // JSON
+    xml: "💻", // XML
 
     // Media
     mp3: "🎵",
