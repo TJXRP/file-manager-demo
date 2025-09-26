@@ -968,7 +968,12 @@
 
       <!-- File Manager Section Marker -->
       <div class="file-manager-marker">
+        <!-- BEGIN: File Manager Section Marker (undo block) -->
+        <h2 class="integration-message">
+          EVERYTHING ABOVE THIS LINE NEEDS INTEGRATION - IT IS BUT A DREAM
+        </h2>
         <h2>EVERNODE TOOLBOX ⤴ &nbsp; &nbsp; &nbsp; &nbsp;PAYLOAD MANAGER ⤵</h2>
+        <!-- END: File Manager Section Marker (undo block) -->
       </div>
 
       <!-- Action Buttons -->
@@ -985,9 +990,42 @@
         <button id="uploadFolderBtn" class="btn btn-sm btn-primary">
           📁 Upload Folder
         </button>
+        <!-- <button id="archiveBtn" class="btn btn-sm btn-info">
+          🗄️ Backup Now
+        </button> -->
         <button id="purgeBtn" class="btn btn-sm btn-danger-orange">
           🗑️ Purge
         </button>
+        <!-- Archive Website Modal -->
+        <div id="archiveModal" class="modal">
+          <div class="modal-content" style="max-width: 400px">
+            <div class="modal-header">
+              <h3 class="modal-title">Archive Entire Website</h3>
+              <button class="modal-close" onclick="closeModal('archiveModal')">
+                &times;
+              </button>
+            </div>
+            <form id="archiveForm" onsubmit="submitArchive(event)">
+              <div class="form-group">
+                <label class="form-label">Destination:</label>
+                <select id="archiveDestSelect" class="form-input" required>
+                  <option value="_download">Download (to your device)</option>
+                  <option value="_server">Server (store in data folder)</option>
+                </select>
+              </div>
+              <div class="modal-actions">
+                <button
+                  type="button"
+                  class="btn"
+                  onclick="closeModal('archiveModal')"
+                >
+                  Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">Archive</button>
+              </div>
+            </form>
+          </div>
+        </div>
         <label
           id="debugToggleLabel"
           style="
