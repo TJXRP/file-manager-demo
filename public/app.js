@@ -1,8 +1,42 @@
 // File Manager JavaScript
-const BASE_PATH = "/file-manager";
+const BASE_PATH = ""; // Changed from "/file-manager" to "" for shared hosting
 let currentPath = "";
 let authToken = "";
 let selectedFiles = new Set();
+
+// === DEBUG FLAG ===
+// Set to true for verbose error reporting, false for production
+window.FILE_MANAGER_DEBUG = true;
+// Persist debug flag in localStorage
+if (localStorage.getItem("fileManagerDebug") !== null) {
+  window.FILE_MANAGER_DEBUG =
+    localStorage.getItem("fileManagerDebug") === "true";
+}
+document.addEventListener("DOMContentLoaded", function () {
+  const debugToggle = document.getElementById("debugToggle");
+  if (debugToggle) {
+    debugToggle.checked = window.FILE_MANAGER_DEBUG;
+    debugToggle.addEventListener("change", function () {
+      window.FILE_MANAGER_DEBUG = debugToggle.checked;
+      localStorage.setItem("fileManagerDebug", debugToggle.checked);
+      showDebugStatus();
+    });
+  }
+  showDebugStatus();
+});
+
+function showDebugStatus() {
+  const debugStatus = document.getElementById("debugStatus");
+  if (!debugStatus) return;
+  if (window.FILE_MANAGER_DEBUG) {
+    debugStatus.style.display = "block";
+    debugStatus.textContent =
+      "[DEBUG MODE ON] All errors and API debug info will be shown here.";
+  } else {
+    debugStatus.style.display = "none";
+    debugStatus.textContent = "";
+  }
+}
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", function () {
@@ -201,16 +235,41 @@ async function apiRequest(url, options = {}) {
   };
 
   // Debug: Verify auth header is present
-  console.log(
-    "Sending request to:",
-    url,
-    "with auth header:",
-    headers["x-auth"]
-  );
+  if (window.FILE_MANAGER_DEBUG) {
+    console.log(
+      "[DEBUG] Sending request to:",
+      url,
+      "with auth header:",
+      headers["x-auth"]
+    );
+  }
 
   try {
     const response = await fetch(url, config);
-    const data = await response.json();
+
+    // Check if response is HTML (common on shared hosting errors)
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("text/html")) {
+      const htmlText = await response.text();
+      if (window.FILE_MANAGER_DEBUG) {
+        console.error("[DEBUG] Received HTML instead of JSON from:", url);
+        console.error("[DEBUG] HTML response:", htmlText.substring(0, 500));
+      }
+      throw new Error(
+        `Server returned HTML instead of JSON. Check if API endpoint ${url} exists.`
+      );
+    }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonErr) {
+      if (window.FILE_MANAGER_DEBUG) {
+        console.error("[DEBUG] Failed to parse JSON from:", url);
+        console.error("[DEBUG] Response:", await response.text());
+      }
+      throw new Error("Failed to parse server response as JSON.");
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -218,11 +277,32 @@ async function apiRequest(url, options = {}) {
         showAuth();
         return null;
       }
+      if (window.FILE_MANAGER_DEBUG) {
+        console.error(
+          "[DEBUG] API error:",
+          data.error,
+          "URL:",
+          url,
+          "Options:",
+          options
+        );
+      }
       throw new Error(data.error || "Request failed");
     }
 
     return data;
   } catch (error) {
+    if (window.FILE_MANAGER_DEBUG) {
+      console.error(
+        "[DEBUG] apiRequest error:",
+        error,
+        "URL:",
+        url,
+        "Options:",
+        options
+      );
+      if (error.stack) console.error(error.stack);
+    }
     showStatus(error.message, "error");
     return null;
   }
@@ -928,10 +1008,23 @@ function showStatus(message, type) {
   status.textContent = message;
   status.className = `status ${type}`;
   status.style.display = "block";
-
+  // Make error messages persistent until page refresh
+  if (type === "error") {
+    // Also append to debugStatus if debug is on
+    if (window.FILE_MANAGER_DEBUG) {
+      const debugStatus = document.getElementById("debugStatus");
+      if (debugStatus) {
+        debugStatus.style.display = "block";
+        debugStatus.textContent += `\n[${new Date().toLocaleTimeString()}] ${message}`;
+      }
+    }
+    // Do not auto-hide error
+    return;
+  }
+  // For non-error, hide after 20s
   setTimeout(() => {
     status.style.display = "none";
-  }, 5000);
+  }, 20000);
 }
 
 function showLoading(show) {
@@ -1111,6 +1204,8 @@ async function executePurge() {
       },
     });
 
+    console.log("Purge response:", data); // Debug log
+
     if (data && data.success) {
       showStatus(
         "✅ Purge completed successfully! All files have been removed.",
@@ -1121,13 +1216,93 @@ async function executePurge() {
       currentPath = "";
       loadFiles("");
     } else {
-      showStatus(
-        `Purge failed: ${data ? data.error : "Unknown error"}`,
-        "error"
-      );
+      const errorMsg = data
+        ? data.error || data.message || "Unknown error"
+        : "No response from server";
+      showStatus(`Purge failed: ${errorMsg}`, "error");
     }
   } catch (error) {
     console.error("Purge error:", error);
-    showStatus(`Purge failed: ${error.message}`, "error");
+    showStatus(
+      `Purge failed: ${error.message || "Network or server error"}`,
+      "error"
+    );
+  }
+}
+
+// ========== SETTINGS FUNCTIONALITY ==========
+function openSettingsModal() {
+  document.getElementById("settingsModal").style.display = "block";
+  // Clear the form
+  document.getElementById("passwordChangeForm").reset();
+}
+
+function closeSettingsModal() {
+  document.getElementById("settingsModal").style.display = "none";
+  document.getElementById("passwordChangeForm").reset();
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+
+  const currentPassword = document.getElementById("currentPassword").value;
+  const newPassword = document.getElementById("newPassword").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+
+  // Validation
+  if (newPassword !== confirmPassword) {
+    showStatus("New passwords do not match!", "error");
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    showStatus("Password must be at least 6 characters long!", "error");
+    return;
+  }
+
+  if (newPassword === currentPassword) {
+    showStatus(
+      "New password must be different from current password!",
+      "error"
+    );
+    return;
+  }
+
+  showStatus("Changing password...", "success");
+
+  try {
+    const data = await apiRequest(`${BASE_PATH}/api/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      }),
+    });
+
+    console.log("Password change response:", data); // Debug log
+
+    if (data && data.success) {
+      showStatus(
+        "✅ Password changed successfully! New password is now active.",
+        "success"
+      );
+      closeSettingsModal();
+
+      // The password is now immediately active, no restart needed!
+    } else {
+      const errorMsg = data
+        ? data.error || data.message || "Unknown error"
+        : "No response from server";
+      showStatus(`Password change failed: ${errorMsg}`, "error");
+    }
+  } catch (error) {
+    console.error("Password change error:", error);
+    showStatus(
+      `Password change failed: ${error.message || "Network or server error"}`,
+      "error"
+    );
   }
 }

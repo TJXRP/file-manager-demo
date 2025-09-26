@@ -6,10 +6,13 @@ const archiver = require("archiver");
 const yauzl = require("yauzl");
 const { createReadStream, createWriteStream } = require("fs");
 
+// Load environment variables
+require("dotenv").config();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const PASSWORD = process.env.PASSWORD || "password";
-const BASE_PATH = "/file-manager";
+let PASSWORD = process.env.PASSWORD || "password"; // Make this mutable
+const BASE_PATH = ""; // Changed from "/file-manager" to "" for shared hosting
 const DATA_DIR = path.join(__dirname, "data");
 
 // Ensure data directory exists
@@ -83,8 +86,12 @@ const upload = multer({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from /file-manager path
+// Serve static files from public directory
 app.use(BASE_PATH, express.static("public"));
+
+// Debug: Log all API routes being registered
+console.log(`🔧 Registering API routes with BASE_PATH: "${BASE_PATH}"`);
+console.log(`🔧 API endpoints will be: ${BASE_PATH}/api/*`);
 
 // API Routes - all protected by authentication
 
@@ -306,8 +313,8 @@ app.post(`${BASE_PATH}/api/purge-all`, authenticate, async (req, res) => {
         const stat = await fs.stat(fullPath);
 
         if (stat.isDirectory()) {
-          // Recursively delete directory
-          await fs.rmdir(fullPath, { recursive: true });
+          // Recursively delete directory using fs.rm (newer method)
+          await fs.rm(fullPath, { recursive: true, force: true });
         } else {
           // Delete file
           await fs.unlink(fullPath);
@@ -389,7 +396,8 @@ app.post(`${BASE_PATH}/api/create-file`, authenticate, async (req, res) => {
   try {
     const { path: dirPath, name, content = "" } = req.body;
 
-    if (!isValidFilename(name)) {
+    // Extra validation: name must not be empty, ".", or ".."
+    if (!isValidFilename(name) || !name || name === "." || name === "..") {
       return res.status(400).json({ error: "Invalid file name" });
     }
 
@@ -398,9 +406,19 @@ app.post(`${BASE_PATH}/api/create-file`, authenticate, async (req, res) => {
       sanitizePath(name)
     );
 
-    // Check if file already exists
+    // Prevent writing to the data directory itself
+    if (fullPath === getSecurePath(dirPath || "")) {
+      return res.status(400).json({ error: "Invalid file path" });
+    }
+
+    // Check if file already exists or is a directory
     try {
-      await fs.access(fullPath);
+      const stat = await fs.stat(fullPath);
+      if (stat.isDirectory()) {
+        return res
+          .status(400)
+          .json({ error: "A directory with that name already exists" });
+      }
       return res.status(400).json({ error: "File already exists" });
     } catch {
       // File doesn't exist, which is what we want
@@ -416,7 +434,26 @@ app.post(`${BASE_PATH}/api/create-file`, authenticate, async (req, res) => {
 // Read file content
 app.get(`${BASE_PATH}/api/read-file`, authenticate, async (req, res) => {
   try {
-    const filePath = getSecurePath(req.query.path);
+    const reqPath = req.query.path;
+    if (
+      !reqPath ||
+      reqPath === "." ||
+      reqPath === "/" ||
+      reqPath === "\\" ||
+      reqPath === "data" ||
+      reqPath === "/data" ||
+      reqPath === "\\data"
+    ) {
+      return res.status(400).json({ error: "Invalid or empty file path" });
+    }
+    const filePath = getSecurePath(reqPath);
+
+    // Prevent reading the data directory itself
+    if (filePath === DATA_DIR) {
+      return res
+        .status(400)
+        .json({ error: "Cannot read the data directory as a file" });
+    }
 
     // Check if file exists and is readable
     const stats = await fs.stat(filePath);
@@ -463,6 +500,87 @@ app.post(`${BASE_PATH}/api/save-file`, authenticate, async (req, res) => {
   }
 });
 
+// Change password endpoint
+app.post(`${BASE_PATH}/api/change-password`, authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate current password
+    if (currentPassword !== PASSWORD) {
+      return res.status(401).json({
+        success: false,
+        error: "Current password is incorrect",
+      });
+    }
+
+    // Validate new password
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: "New password must be at least 6 characters long",
+      });
+    }
+
+    if (newPassword === currentPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "New password must be different from current password",
+      });
+    }
+
+    // Update .env file
+    const envPath = path.join(__dirname, ".env");
+    let envContent = "";
+
+    try {
+      // Read existing .env file if it exists
+      envContent = await fs.readFile(envPath, "utf8");
+    } catch (error) {
+      // .env file doesn't exist, create new content
+      envContent = "";
+    }
+
+    // Update or add PASSWORD line
+    const lines = envContent.split("\n");
+    let passwordLineFound = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith("PASSWORD=")) {
+        lines[i] = `PASSWORD=${newPassword}`;
+        passwordLineFound = true;
+        break;
+      }
+    }
+
+    if (!passwordLineFound) {
+      lines.push(`PASSWORD=${newPassword}`);
+    }
+
+    // Write updated .env file
+    await fs.writeFile(envPath, lines.join("\n"));
+
+    // Update the PASSWORD variable in memory (no restart needed!)
+    PASSWORD = newPassword;
+
+    console.log(
+      `✅ Password changed successfully. New password active immediately.`
+    );
+
+    res.json({
+      success: true,
+      message: "Password changed successfully and is now active!",
+    });
+
+    // No server restart needed!
+  } catch (error) {
+    console.error("Password change error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to change password: " + error.message,
+    });
+  }
+});
+
 // Helper function to extract zip files
 function extractZip(zipPath, extractPath) {
   return new Promise((resolve, reject) => {
@@ -504,9 +622,14 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: error.message });
 });
 
-// Redirect root to file manager
+// Redirect root to file manager (fix for empty BASE_PATH)
 app.get("/", (req, res) => {
-  res.redirect(BASE_PATH);
+  if (BASE_PATH) {
+    res.redirect(BASE_PATH);
+  } else {
+    // For empty BASE_PATH, serve the index.html directly
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+  }
 });
 
 app.listen(PORT, () => {

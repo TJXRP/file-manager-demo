@@ -232,7 +232,7 @@
 
       /* ========== EVERNODE CONTROL BUTTONS ========== */
       .evernode-btn {
-        background: #95a5a6;
+        background: #000000;
         color: white;
         border: none;
         padding: 0.5rem 0.8rem;
@@ -627,6 +627,50 @@
         box-shadow: 0 0 5px rgba(231, 76, 60, 0.3);
       }
 
+      /* Settings Modal Styles */
+      .settings-section {
+        padding: 10px 0;
+      }
+
+      .settings-section h4 {
+        color: var(--text-primary);
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid var(--border-color);
+        border-radius: 5px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font-size: 14px;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        box-sizing: border-box;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+      }
+
+      .form-input::placeholder {
+        color: var(--text-tertiary);
+      }
+
       /* Footer */
       .footer {
         background: white;
@@ -812,7 +856,7 @@
             src="images/evernode-logo.png"
             class="evernode-logo"
             alt="Evernode Logo"
-          />COMMANDER
+          />EXPLORER
         </h1>
         <div class="header-actions">
           <a
@@ -836,6 +880,14 @@
             title="Toggle dark mode"
           >
             🌙 Dark
+          </button>
+          <button
+            id="settingsBtn"
+            class="btn btn-secondary"
+            onclick="openSettingsModal()"
+            title="Settings"
+          >
+            ⚙️ Settings
           </button>
           <button id="logoutBtn" class="btn btn-danger" onclick="logout()">
             🚪 Logout
@@ -886,7 +938,7 @@
 
       <!-- File Manager Section Marker -->
       <div class="file-manager-marker">
-        <h2>THE PAYLOAD MANAGER ↴</h2>
+        <h2>EVERNODE TOOLBOX ⤴ &nbsp; &nbsp; &nbsp; &nbsp;PAYLOAD MANAGER ⤵</h2>
       </div>
 
       <!-- Action Buttons -->
@@ -906,12 +958,35 @@
         <button id="purgeBtn" class="btn btn-sm btn-danger-orange">
           🗑️ Purge
         </button>
+        <label
+          id="debugToggleLabel"
+          style="
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5em;
+            cursor: pointer;
+            font-size: 0.95em;
+            user-select: none;
+          "
+        >
+          <input
+            type="checkbox"
+            id="debugToggle"
+            style="accent-color: #f39c12; vertical-align: middle"
+          />
+          <span>Debug</span>
+        </label>
       </div>
 
       <!-- Main Content -->
       <main class="main-content">
         <!-- Status Messages -->
         <div id="status" class="status"></div>
+        <div
+          id="debugStatus"
+          class="status error"
+          style="display: none; white-space: pre-wrap"
+        ></div>
 
         <!-- Upload Areas -->
         <div class="upload-section">
@@ -1322,6 +1397,77 @@
                 🗑️ PURGE EVERYTHING
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SETTINGS MODAL ========== -->
+    <div id="settingsModal" class="modal">
+      <div class="modal-content" style="max-width: 500px">
+        <div class="modal-header">
+          <h3>⚙️ Settings</h3>
+          <button class="modal-close" onclick="closeSettingsModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-section">
+            <h4>🔐 Change Password</h4>
+            <p style="color: var(--text-secondary); margin-bottom: 20px">
+              Update your authentication password. The server will need to
+              restart after changing the password.
+            </p>
+
+            <form id="passwordChangeForm" onsubmit="changePassword(event)">
+              <div class="form-group">
+                <label for="currentPassword">Current Password</label>
+                <input
+                  type="password"
+                  id="currentPassword"
+                  name="currentPassword"
+                  required
+                  placeholder="Enter current password"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  name="newPassword"
+                  required
+                  minlength="6"
+                  placeholder="Enter new password (min 6 characters)"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="confirmPassword">Confirm New Password</label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  required
+                  placeholder="Confirm new password"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="modal-buttons" style="margin-top: 25px">
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onclick="closeSettingsModal()"
+                >
+                  Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  🔐 Change Password
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -1934,6 +2080,7 @@
     </div>
     <!-- ========== END DEPLOYMENT INSTRUCTIONS MODAL ========== -->
 
+    <script src="config.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
