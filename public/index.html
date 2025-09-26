@@ -136,7 +136,7 @@
       }
 
       .evernode-logo {
-        height: 3rem;
+        height: 2.8rem;
         width: auto;
         object-fit: contain;
         border-radius: 4px;
@@ -856,6 +856,19 @@
         content: "📁";
         font-size: 1rem;
       }
+      /* Ensure the integration message is blue, large, and has no folder icon */
+      .file-manager-marker h2.integration-message {
+        color: #fe00c3 !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px;
+        background: none !important;
+        text-align: center !important;
+        justify-content: center !important;
+      }
+      .file-manager-marker h2.integration-message::before {
+        content: none !important;
+      }
     </style>
   </head>
   <body>
@@ -970,7 +983,7 @@
       <div class="file-manager-marker">
         <!-- BEGIN: File Manager Section Marker (undo block) -->
         <h2 class="integration-message">
-          EVERYTHING ABOVE THIS LINE NEEDS INTEGRATION - IT IS BUT A DREAM
+          EVERYTHING ABOVE THIS TEXT NEEDS INTEGRATION - IT IS BUT A DREAM
         </h2>
         <h2>EVERNODE TOOLBOX ⤴ &nbsp; &nbsp; &nbsp; &nbsp;PAYLOAD MANAGER ⤵</h2>
         <!-- END: File Manager Section Marker (undo block) -->
@@ -1133,7 +1146,7 @@
             Select All
           </button>
           <button id="downloadBtn" class="btn btn-success btn-small" disabled>
-            📥 Download
+            📥 Download Selected
           </button>
           <button id="deleteBtn" class="btn btn-danger btn-small" disabled>
             🗑️ Delete
