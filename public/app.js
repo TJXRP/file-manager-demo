@@ -545,16 +545,56 @@ async function uploadFiles(files) {
     }
   }
 
-  showStatus("Uploading files...", "success");
+  // Show progress bar
+  const progressContainer = document.getElementById("uploadProgressContainer");
+  const progressBar = document.getElementById("uploadProgressBar");
+  const progressText = document.getElementById("uploadProgressText");
+  progressContainer.style.display = "block";
+  progressBar.value = 0;
+  progressText.textContent = "0% (0 / " + files.length + ")";
 
-  const data = await apiRequest(`${BASE_PATH}/api/upload`, {
-    method: "POST",
-    body: formData,
-  });
+  // Use XMLHttpRequest for progress
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", `${BASE_PATH}/api/upload`);
+  xhr.setRequestHeader("x-auth", authToken);
+  xhr.upload.onprogress = function (e) {
+    if (e.lengthComputable) {
+      const percent = Math.round((e.loaded / e.total) * 100);
+      progressBar.value = percent;
+      progressText.textContent = `${percent}% (${formatBytes(
+        e.loaded
+      )} / ${formatBytes(e.total)})`;
+    }
+  };
+  xhr.onload = function () {
+    progressContainer.style.display = "none";
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        showStatus(
+          `Successfully uploaded ${data.files.length} file(s)`,
+          "success"
+        );
+        loadFiles(currentPath);
+      } catch (err) {
+        showStatus("Upload succeeded but response was invalid.", "error");
+      }
+    } else {
+      showStatus(`Upload failed: ${xhr.statusText}`, "error");
+    }
+  };
+  xhr.onerror = function () {
+    progressContainer.style.display = "none";
+    showStatus("Upload failed due to network error.", "error");
+  };
+  xhr.send(formData);
 
-  if (data) {
-    showStatus(`Successfully uploaded ${data.files.length} file(s)`, "success");
-    loadFiles(currentPath);
+  function formatBytes(bytes) {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 }
 
